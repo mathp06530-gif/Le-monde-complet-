@@ -27,6 +27,7 @@ export function matchKeys(keys: readonly string[], query: string, limit: number)
 export class SearchIndex {
   private readonly countryKeys: string[];
   private readonly regionKeys: string[];
+  private readonly groupKeys: string[];
   private readonly cityKeys: string[];
 
   constructor(private readonly world: World) {
@@ -36,6 +37,7 @@ export class SearchIndex {
     this.regionKeys = world.regions.map((r) =>
       normalize(`${r.properties.name} | ${r.properties.nameEn}`),
     );
+    this.groupKeys = world.groups.map((g) => normalize(g.name));
     this.cityKeys = world.cities.name.map(normalize);
   }
 
@@ -53,13 +55,21 @@ export class SearchIndex {
         subtitle: `Pays · ${p.continent}`,
       });
     }
+    for (const i of matchKeys(this.groupKeys, query, 4)) {
+      const g = world.groups[i];
+      results.push({
+        selection: { kind: 'group', index: i },
+        title: g.name,
+        subtitle: `Région · ${world.countries[g.country].properties.name}`,
+      });
+    }
     for (const i of matchKeys(this.regionKeys, query, 6)) {
       const p = world.regions[i].properties;
       const country = world.countryOfRegion(i);
       results.push({
         selection: { kind: 'region', index: i },
         title: p.name,
-        subtitle: `Région · ${country >= 0 ? world.countries[country].properties.name : p.a3}`,
+        subtitle: `${regionTypeLabel(p.type)} · ${country >= 0 ? world.countries[country].properties.name : p.a3}`,
       });
     }
     for (const i of matchKeys(this.cityKeys, query, 14)) {
@@ -75,4 +85,62 @@ export class SearchIndex {
     }
     return results;
   }
+}
+
+const REGION_TYPES: Record<string, string> = {
+  State: 'État',
+  Province: 'Province',
+  Region: 'Région',
+  Department: 'Département',
+  'Metropolitan department': 'Département',
+  'Overseas department': 'Département d’outre-mer',
+  County: 'Comté',
+  District: 'District',
+  Municipality: 'Municipalité',
+  Prefecture: 'Préfecture',
+  Governorate: 'Gouvernorat',
+  Territory: 'Territoire',
+  Canton: 'Canton',
+  Republic: 'République',
+  Parish: 'Paroisse',
+  Emirate: 'Émirat',
+  Island: 'Île',
+  'Autonomous Community': 'Communauté autonome',
+  'Autonomous Region': 'Région autonome',
+  'Federal District': 'District fédéral',
+  'Capital District': 'District de la capitale',
+};
+
+/** Nom français du type de subdivision fourni (en anglais) par Natural Earth. */
+export function regionTypeLabel(type: string): string {
+  return REGION_TYPES[type] ?? (type || 'Région');
+}
+
+export interface OnlinePlace {
+  name: string;
+  detail: string;
+  lat: number;
+  lng: number;
+}
+
+/**
+ * Recherche mondiale via Nominatim (OpenStreetMap) : adresses, villages,
+ * monuments… Appelée uniquement sur action explicite de l'utilisateur, comme
+ * l'exige la politique d'usage du service.
+ */
+export async function searchOnline(text: string, signal?: AbortSignal): Promise<OnlinePlace[]> {
+  const url = new URL('https://nominatim.openstreetmap.org/search');
+  url.search = new URLSearchParams({
+    q: text,
+    format: 'jsonv2',
+    limit: '8',
+    'accept-language': 'fr',
+  }).toString();
+  const res = await fetch(url, { signal });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const rows = (await res.json()) as { display_name: string; lat: string; lon: string }[];
+  return rows.map((row) => {
+    const [name, ...rest] = row.display_name.split(', ');
+    return { name, detail: rest.join(', '), lat: Number(row.lat), lng: Number(row.lon) };
+  });
 }

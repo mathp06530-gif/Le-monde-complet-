@@ -22,6 +22,8 @@ export interface RegionProps {
   nameEn: string;
   a3: string;
   type: string;
+  /** Niveau administratif supérieur (ex. région d'un département), ou ''. */
+  group: string;
   lat: number;
   lng: number;
 }
@@ -43,10 +45,20 @@ export interface Cities {
   capital: number[];
 }
 
+/** Regroupement de régions d'un même pays (ex. les 18 régions françaises). */
+export interface Group {
+  name: string;
+  country: number;
+  regions: number[];
+}
+
 export type Selection =
   | { kind: 'country'; index: number }
+  | { kind: 'group'; index: number }
   | { kind: 'region'; index: number }
-  | { kind: 'city'; index: number };
+  | { kind: 'city'; index: number }
+  /** Lieu libre issu de la recherche en ligne (adresse, village, monument…). */
+  | { kind: 'place'; name: string; detail: string; lat: number; lng: number };
 
 export class World {
   readonly countries: CountryFeature[];
@@ -54,6 +66,11 @@ export class World {
   readonly countryBorders: MultiLineString;
   readonly regionBorders: MultiLineString;
   readonly regionsByCountry: number[][];
+  readonly groups: Group[] = [];
+  readonly groupsByCountry: number[][];
+  /** Index du groupe de chaque région, ou -1. */
+  readonly groupOfRegion: number[];
+  readonly countryOfRegionIndex: number[];
   readonly citiesByCountry: number[][];
   readonly citiesByRegion: number[][];
   readonly capitals: Set<number>;
@@ -78,9 +95,28 @@ export class World {
 
     const a3ToCountry = new Map(this.countries.map((c, i) => [c.properties.a3, i]));
     this.regionsByCountry = this.countries.map(() => []);
-    this.regions.forEach((r, i) => {
-      const c = a3ToCountry.get(r.properties.a3);
-      if (c !== undefined) this.regionsByCountry[c].push(i);
+    this.countryOfRegionIndex = this.regions.map((r, i) => {
+      const c = a3ToCountry.get(r.properties.a3) ?? -1;
+      if (c >= 0) this.regionsByCountry[c].push(i);
+      return c;
+    });
+
+    // Un niveau intermédiaire n'a de sens que s'il regroupe réellement des régions.
+    this.groupsByCountry = this.countries.map(() => []);
+    this.groupOfRegion = this.regions.map(() => -1);
+    this.regionsByCountry.forEach((regionIndexes, country) => {
+      const byName = new Map<string, number[]>();
+      for (const r of regionIndexes) {
+        const name = this.regions[r].properties.group;
+        if (!name) return;
+        byName.set(name, [...(byName.get(name) ?? []), r]);
+      }
+      if (byName.size < 2 || byName.size >= regionIndexes.length) return;
+      for (const [name, members] of byName) {
+        const index = this.groups.push({ name, country, regions: members }) - 1;
+        this.groupsByCountry[country].push(index);
+        for (const r of members) this.groupOfRegion[r] = index;
+      }
     });
 
     this.citiesByCountry = this.countries.map(() => []);
@@ -94,8 +130,12 @@ export class World {
 
   /** Pays d'une région (ou -1). */
   countryOfRegion(region: number): number {
-    const a3 = this.regions[region].properties.a3;
-    return this.countries.findIndex((c) => c.properties.a3 === a3);
+    return this.countryOfRegionIndex[region];
+  }
+
+  /** Villes d'un groupe de régions, les plus peuplées d'abord. */
+  citiesOfGroup(group: number): number[] {
+    return this.groups[group].regions.flatMap((r) => this.citiesByRegion[r]).sort((a, b) => a - b);
   }
 
   countryAt(lat: number, lng: number): number {

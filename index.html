@@ -5,27 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Globe terrestre 3D interactif : tous les pays, régions et villes du monde."
+      content="Globe terrestre 3D réaliste : tous les pays, régions et villes du monde, jusqu'au niveau de la rue."
     />
-    <meta name="theme-color" content="#05070d" />
+    <meta name="theme-color" content="#020604" />
     <link
       rel="icon"
-      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌍</text></svg>"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23020604'/><circle cx='50' cy='50' r='34' fill='none' stroke='%2300ff9c' stroke-width='6'/><path d='M16 50h68M50 16c-22 18-22 50 0 68M50 16c22 18 22 50 0 68' fill='none' stroke='%2300ff9c' stroke-width='4'/></svg>"
     />
     <title>Le Monde Complet</title>
   </head>
   <body>
     <div id="globe"></div>
     <div id="labels" aria-hidden="true"></div>
+    <div id="ground"></div>
+    <div id="fx" aria-hidden="true"></div>
 
     <header id="topbar">
-      <h1>🌍 Le Monde Complet</h1>
+      <h1><span class="prompt">root@terre:~#</span> LE_MONDE_COMPLET</h1>
       <div id="searchbox">
         <input
           id="search"
           type="search"
-          placeholder="Rechercher un pays, une région, une ville…"
+          placeholder="rechercher un pays, une ville, une adresse…"
           autocomplete="off"
+          spellcheck="false"
           aria-label="Rechercher un lieu"
         />
         <ul id="results"></ul>
@@ -38,17 +41,63 @@
       <div id="panel-content"></div>
     </aside>
 
+    <div id="ground-controls">
+      <button id="btn-orbit" type="button" class="btn">▲ Orbite</button>
+      <button id="btn-walk" type="button" class="btn">⛶ Marcher</button>
+      <a id="link-streetview" class="btn" target="_blank" rel="noopener">Street View ↗</a>
+      <p id="walk-help">
+        ZQSD ou flèches ↑ ↓ : se déplacer · ← → : tourner · glisser : regarder · Maj : courir ·
+        Échap : quitter
+      </p>
+    </div>
+
+    <div id="dpad" aria-label="Commandes de déplacement">
+      <button type="button" data-code="ArrowUp" aria-label="Avancer">▲</button>
+      <button type="button" data-code="ArrowLeft" aria-label="Tourner à gauche">◀</button>
+      <button type="button" data-code="ArrowDown" aria-label="Reculer">▼</button>
+      <button type="button" data-code="ArrowRight" aria-label="Tourner à droite">▶</button>
+    </div>
+
     <form id="options" aria-label="Options d'affichage">
       <label><input id="opt-regions" type="checkbox" checked /> Régions</label>
       <label><input id="opt-cities" type="checkbox" checked /> Villes</label>
       <label><input id="opt-labels" type="checkbox" checked /> Noms</label>
-      <label><input id="opt-night" type="checkbox" /> Nuit</label>
+      <label><input id="opt-sun" type="checkbox" checked /> Soleil réel</label>
+      <label><input id="opt-clouds" type="checkbox" checked /> Nuages</label>
       <label><input id="opt-rotate" type="checkbox" /> Rotation</label>
     </form>
 
-    <footer id="credits">Données : Natural Earth · GeoNames · NASA Blue Marble</footer>
+    <footer id="hud">
+      <span>MODE <b id="hud-mode">ORBITE</b></span>
+      <span>POS <b id="hud-coords">—</b></span>
+      <span>ALT <b id="hud-altitude">—</b></span>
+      <span><b id="hud-clock">—</b></span>
+      <span id="hud-stats"></span>
+      <span id="credits">Natural Earth · GeoNames · NASA · Esri · OpenStreetMap</span>
+    </footer>
 
-    <div id="loading">Chargement du monde…</div>
+    <section id="scan-viewer" hidden>
+      <header>
+        <span class="tag">// SCAN 3D</span>
+        <strong id="scan-title"></strong>
+        <a id="scan-link" class="btn" target="_blank" rel="noopener">Nouvel onglet ↗</a>
+        <button id="scan-close" type="button" class="btn">✕ Fermer</button>
+      </header>
+      <iframe
+        id="scan-frame"
+        title="Lieu scanné en 3D"
+        allow="fullscreen; xr-spatial-tracking; gyroscope; accelerometer"
+        referrerpolicy="no-referrer"
+      ></iframe>
+    </section>
+
+    <div id="loading">
+      <div>
+        <p class="boot-title">LE_MONDE_COMPLET</p>
+        <pre id="boot-log"></pre>
+        <span class="cursor">█</span>
+      </div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

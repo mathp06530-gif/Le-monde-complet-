@@ -5,16 +5,35 @@ Globe terrestre 3D interactif, dans le navigateur : **242 pays et territoires**,
 
 ## Fonctionnalités
 
-- Globe 3D (texture NASA Blue Marble, relief, atmosphère, mode nuit)
-- Frontières des pays et des régions
-- Toutes les villes de plus de 1 000 habitants : elles apparaissent au fur et à
-  mesure du zoom, les plus peuplées d'abord
-- Recherche instantanée d'un pays, d'une région ou d'une ville (sans tenir
-  compte des accents)
-- Clic sur le globe : fiche du pays, de la région ou de la ville (capitale,
-  population, coordonnées, lien OpenStreetMap)
-- Navigation hiérarchique : continent › pays › région › ville
-- Utilisable sur mobile
+**Vue orbitale (globe)**
+
+- Terre photo-réaliste : alternance jour/nuit calculée d'après la position
+  réelle du Soleil, lumières des villes côté nuit, nuages, relief, reflets sur
+  les océans, atmosphère
+- Frontières des pays et des régions ; toutes les villes de plus de
+  1 000 habitants, qui apparaissent au fur et à mesure du zoom
+- Trois niveaux administratifs quand ils existent : pays › région › département
+  (France, Italie, Espagne, Royaume-Uni…)
+
+**Vue au sol**
+
+- En zoomant jusqu'au bout (ou via « Descendre au sol »), le globe laisse place
+  à l'imagerie satellite drapée sur le relief, avec bâtiments 3D, noms de rues
+  et de lieux
+- Mode « Marcher » : déplacement libre à hauteur de rue, au clavier (ZQSD ou
+  flèches) ou avec les flèches tactiles
+- Liens directs vers les photos de rue (Google Street View, Mapillary)
+- Lieux scannés en 3D (Gaussian splats, par exemple publiés sur SuperSplat /
+  PlayCanvas) : on colle le lien d'un scan sur la fiche d'une ville et il
+  s'ouvre dans la visionneuse intégrée
+
+**Recherche et navigation**
+
+- Recherche instantanée des pays, régions et villes (sans tenir compte des
+  accents), plus une recherche mondiale en ligne pour les adresses, villages et
+  monuments
+- Fiches d'information (capitale, population, coordonnées)
+- Interface de style terminal, utilisable sur mobile
 
 ## Développement
 
@@ -48,19 +67,33 @@ npm run preview    # prévisualiser le build
 | `src/geo.ts`             | Utilitaires purs (testés)                                   |
 
 Pile technique : Vite, TypeScript, [globe.gl](https://globe.gl) / Three.js,
-d3-geo, TopoJSON.
+[MapLibre GL JS](https://maplibre.org), d3-geo, TopoJSON.
+
+Pour livrer des scans 3D avec l'application, ajoutez-les à
+`public/data/scans.json` sous la forme
+`[{ "name": "…", "url": "https://…", "lat": 48.8, "lng": 2.1 }]`.
 
 ## Déploiement
 
 Le workflow `.github/workflows/deploy.yml` publie le site sur GitHub Pages à
-chaque push sur `main`. Il faut activer une fois Pages dans les réglages du
+chaque push sur `main` (ou à la demande, depuis l'onglet Actions). Il faut activer une fois Pages dans les réglages du
 dépôt : _Settings › Pages › Source : GitHub Actions_.
 
 ## Données et crédits
 
 - Pays et régions : [Natural Earth](https://www.naturalearthdata.com/) (domaine public)
 - Villes : [GeoNames](https://www.geonames.org/) (CC BY 4.0), via le paquet `all-the-cities`
-- Textures : NASA Blue Marble / Black Marble, via `three-globe`
+- Textures du globe : NASA Blue Marble / Black Marble, via `three-globe`
+- Imagerie satellite de la vue au sol : Esri World Imagery (Esri, Maxar,
+  Earthstar Geographics) — soumise aux conditions d'utilisation d'Esri
+- Rues, bâtiments et noms de lieux : © contributeurs
+  [OpenStreetMap](https://www.openstreetmap.org/copyright), tuiles
+  [OpenFreeMap](https://openfreemap.org)
+- Relief : Mapzen / AWS Terrain Tiles
+- Recherche mondiale : Nominatim (OpenStreetMap)
+
+La vue au sol et la recherche mondiale nécessitent une connexion Internet : ces
+données sont chargées à la demande depuis les services ci-dessus.
 
 Les frontières sont celles de Natural Earth et n'expriment aucune position sur
 les territoires disputés.

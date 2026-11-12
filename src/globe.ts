@@ -9,10 +9,13 @@ import {
 } from 'three';
 import type { MultiLineString } from 'geojson';
 import type { CountryFeature, RegionFeature, World } from './data';
+import { EarthMaterial } from './earth-material';
 import { countAtLeast, GLOBE_RADIUS, minPopulationForAltitude, toXYZ } from './geo';
 
 const IMG = `${import.meta.env.BASE_URL}img/`;
 const REGION_BORDERS_MAX_ALTITUDE = 1.3;
+/** Altitude minimale du globe ; en dessous, la vue au sol prend le relais. */
+export const MIN_ORBIT_ALTITUDE = 0.09;
 
 function buildLines(lines: MultiLineString, altitude: number, material: LineBasicMaterial) {
   let segments = 0;
@@ -46,6 +49,8 @@ export class WorldGlobe {
 
   private readonly regionLines: LineSegments;
   private readonly cityPoints: Points;
+  private readonly earth = new EarthMaterial(IMG);
+  private cloudsEnabled = true;
   private regionsEnabled = true;
   private citiesEnabled = true;
 
@@ -56,16 +61,15 @@ export class WorldGlobe {
     onViewChange: () => void,
   ) {
     this.globe = new Globe(container, { animateIn: false })
-      .globeImageUrl(`${IMG}earth-blue-marble.jpg`)
-      .bumpImageUrl(`${IMG}earth-topology.png`)
+      .globeMaterial(this.earth.material)
       .backgroundImageUrl(`${IMG}night-sky.png`)
-      .atmosphereColor('#7fb6ff')
-      .atmosphereAltitude(0.18)
+      .atmosphereColor('#6aa8ff')
+      .atmosphereAltitude(0.16)
       .polygonsTransitionDuration(0)
       .polygonAltitude(0.004)
-      .polygonCapColor(() => 'rgba(255, 196, 61, 0.22)')
-      .polygonSideColor(() => 'rgba(255, 196, 61, 0.35)')
-      .polygonStrokeColor(() => '#ffc43d')
+      .polygonCapColor(() => 'rgba(0, 255, 156, 0.14)')
+      .polygonSideColor(() => 'rgba(0, 255, 156, 0.3)')
+      .polygonStrokeColor(() => '#00ff9c')
       .onGlobeClick(({ lat, lng }) => onClick({ lat, lng }))
       .onPolygonClick((_polygon, _event, { lat, lng }) => onClick({ lat, lng }));
 
@@ -91,12 +95,12 @@ export class WorldGlobe {
     cityGeometry.setAttribute('position', new BufferAttribute(this.cityPositions, 3));
     this.cityPoints = new Points(
       cityGeometry,
-      new PointsMaterial({ color: 0xffe08a, size: 3.5, sizeAttenuation: false }),
+      new PointsMaterial({ color: 0x9dffe0, size: 3, sizeAttenuation: false }),
     );
     scene.add(this.cityPoints);
 
     const controls = this.globe.controls();
-    controls.minDistance = GLOBE_RADIUS * 1.015;
+    controls.minDistance = GLOBE_RADIUS * (1 + MIN_ORBIT_ALTITUDE);
     controls.maxDistance = GLOBE_RADIUS * 6;
     controls.autoRotateSpeed = 0.35;
     controls.addEventListener('change', () => {
@@ -122,6 +126,28 @@ export class WorldGlobe {
       ? countAtLeast(this.world.cities.pop, minPopulationForAltitude(altitude))
       : 0;
     this.cityPoints.geometry.setDrawRange(0, this.visibleCities);
+    this.earth.setClouds(this.cloudsEnabled, altitude);
+  }
+
+  /** À appeler à chaque image : met à jour le soleil et la dérive des nuages. */
+  tick(now: number): void {
+    this.earth.setDate(new Date());
+    this.earth.drift(now / 1000);
+  }
+
+  setRealSun(on: boolean): void {
+    this.earth.setRealSun(on);
+  }
+
+  setCloudsEnabled(on: boolean): void {
+    this.cloudsEnabled = on;
+    this.updateLevelOfDetail();
+  }
+
+  /** Suspend ou reprend le rendu (le globe est masqué pendant la vue au sol). */
+  setPaused(paused: boolean): void {
+    if (paused) this.globe.pauseAnimation();
+    else this.globe.resumeAnimation();
   }
 
   setRegionsEnabled(on: boolean): void {
@@ -134,19 +160,34 @@ export class WorldGlobe {
     this.updateLevelOfDetail();
   }
 
-  setNight(on: boolean): void {
-    this.globe.globeImageUrl(`${IMG}${on ? 'earth-night.jpg' : 'earth-blue-marble.jpg'}`);
-  }
-
   setAutoRotate(on: boolean): void {
     this.globe.controls().autoRotate = on;
+    if (!on) this.settle();
   }
 
-  highlight(shape: CountryFeature | RegionFeature | null): void {
-    this.globe.polygonsData(shape ? [shape] : []);
+  /**
+   * Annule l'élan résiduel des contrôles (inertie de la rotation automatique),
+   * qui décalerait sinon la destination d'un déplacement de caméra.
+   */
+  private settle(): void {
+    const controls = this.globe.controls();
+    controls.enableDamping = false;
+    controls.update();
+    controls.enableDamping = true;
   }
 
-  flyTo(lat: number, lng: number, altitude: number): void {
-    this.globe.pointOfView({ lat, lng, altitude }, 1200);
+  highlight(shapes: (CountryFeature | RegionFeature)[]): void {
+    this.globe.polygonsData(shapes);
+  }
+
+  flyTo(lat: number, lng: number, altitude: number, ms = 1200): void {
+    this.settle();
+    this.globe.pointOfView({ lat, lng, altitude: Math.max(altitude, MIN_ORBIT_ALTITUDE) }, ms);
+  }
+
+  /** Point visé par la caméra. */
+  get center(): { lat: number; lng: number } {
+    const { lat, lng } = this.globe.pointOfView();
+    return { lat, lng };
   }
 }

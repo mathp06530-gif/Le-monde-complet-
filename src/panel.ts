@@ -1,9 +1,19 @@
 import type { Selection, World } from './data';
 import { flagEmoji, formatCoords, formatNumber } from './geo';
+import { parseScanUrl, scansNear, type Scan, type ScanLibrary } from './scans';
+import { regionTypeLabel } from './search';
 
 const CITY_PAGE = 100;
 
-type Select = (selection: Selection | null) => void;
+export interface PanelActions {
+  select(selection: Selection | null): void;
+  /** Descend en vue au sol à cet endroit. */
+  descend(lat: number, lng: number, zoom: number): void;
+  /** Descend et passe directement en mode marche. */
+  walk(lat: number, lng: number): void;
+  /** Ouvre un lieu scanné en 3D dans la visionneuse. */
+  openScan(scan: Scan): void;
+}
 
 function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -39,19 +49,114 @@ export class Panel {
   constructor(
     private readonly root: HTMLElement,
     private readonly world: World,
-    private readonly select: Select,
+    private readonly actions: PanelActions,
+    private readonly scans: ScanLibrary,
   ) {}
 
+  private current: Selection | null = null;
+
+  private select(selection: Selection | null): void {
+    this.actions.select(selection);
+  }
+
+  /** Liste de scans 3D, avec ajout possible à un endroit donné. */
+  private scanSection(title: string, scans: Scan[], addAt?: { lat: number; lng: number }) {
+    const section = el('section');
+    section.append(el('h3', '', `${title} (${scans.length})`));
+    const list = el('ul', 'list');
+    for (const scan of scans) {
+      const li = el('li');
+      li.append(linkButton(`◈ ${scan.name}`, () => this.actions.openScan(scan)));
+      if (this.scans.isCustom(scan)) {
+        li.append(
+          linkButton('retirer', () => {
+            this.scans.remove(scan);
+            this.render(this.current);
+          }),
+        );
+      }
+      list.append(li);
+    }
+    section.append(list);
+    if (scans.length === 0) {
+      section.append(
+        el(
+          'p',
+          'muted',
+          addAt
+            ? 'Aucun lieu scanné ici pour l’instant.'
+            : 'Aucun scan enregistré. Ouvrez la fiche d’une ville pour en ajouter un.',
+        ),
+      );
+    }
+    if (addAt) {
+      section.append(
+        linkButton(
+          '＋ Ajouter un scan 3D ici',
+          () => {
+            const url = parseScanUrl(
+              window.prompt('Adresse HTTPS du scan (par exemple un lien SuperSplat) :') ?? '',
+            );
+            if (!url) return;
+            const name = window.prompt('Nom du lieu :')?.trim();
+            if (!name) return;
+            this.scans.add({ name, url, ...addAt });
+            this.render(this.current);
+          },
+          'more',
+        ),
+      );
+    }
+    return section;
+  }
+
+  private tag(text: string): HTMLElement {
+    return el('p', 'tag', `// ${text}`);
+  }
+
+  private groundActions(lat: number, lng: number, zoom: number, street: boolean): HTMLElement {
+    const box = el('div', 'actions');
+    box.append(linkButton('▼ Descendre au sol', () => this.actions.descend(lat, lng, zoom), 'btn'));
+    if (street) {
+      box.append(linkButton('⛶ Marcher dans les rues', () => this.actions.walk(lat, lng), 'btn'));
+    }
+    return box;
+  }
+
+  private externalLinks(lat: number, lng: number): HTMLElement {
+    const box = el('span', 'links');
+    const add = (text: string, href: string) => {
+      const a = el('a', '', text);
+      a.href = href;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      box.append(a);
+    };
+    add(
+      'Street View ↗',
+      `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`,
+    );
+    add('Mapillary ↗', `https://www.mapillary.com/app/?lat=${lat}&lng=${lng}&z=17`);
+    add(
+      'OpenStreetMap ↗',
+      `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=15/${lat}/${lng}`,
+    );
+    return box;
+  }
+
   render(selection: Selection | null): void {
+    this.current = selection;
     this.root.replaceChildren();
     this.root.scrollTop = 0;
     if (!selection) this.renderHome();
     else if (selection.kind === 'country') this.renderCountry(selection.index);
+    else if (selection.kind === 'group') this.renderGroup(selection.index);
     else if (selection.kind === 'region') this.renderRegion(selection.index);
-    else this.renderCity(selection.index);
+    else if (selection.kind === 'city') this.renderCity(selection.index);
+    else this.renderPlace(selection);
   }
 
-  private breadcrumb(country: number, region = -1): HTMLElement {
+  private breadcrumb(country: number, region = -1, parentGroup = -1): HTMLElement {
     const { world } = this;
     const nav = el('nav', 'breadcrumb');
     nav.append(linkButton('Monde', () => this.select(null)));
@@ -61,6 +166,13 @@ export class Panel {
         linkButton(world.countries[country].properties.name, () =>
           this.select({ kind: 'country', index: country }),
         ),
+      );
+    }
+    const group = region >= 0 ? world.groupOfRegion[region] : parentGroup;
+    if (group >= 0) {
+      nav.append(
+        ' › ',
+        linkButton(world.groups[group].name, () => this.select({ kind: 'group', index: group })),
       );
     }
     if (region >= 0) {
@@ -105,6 +217,7 @@ export class Panel {
   private renderHome(): void {
     const { world } = this;
     this.root.append(
+      this.tag('SYSTÈME EN LIGNE'),
       el('h2', '', 'Explorer le monde'),
       el(
         'p',
@@ -112,7 +225,7 @@ export class Panel {
         `${formatNumber(world.countries.length)} pays et territoires · ` +
           `${formatNumber(world.regions.length)} régions · ` +
           `${formatNumber(world.cities.name.length)} villes. ` +
-          'Cliquez sur le globe, zoomez pour révéler plus de villes, ou utilisez la recherche.',
+          'Cliquez sur le globe, zoomez jusqu’au sol pour passer en imagerie satellite, ou lancez une recherche.',
       ),
     );
     const byContinent = new Map<string, number[]>();
@@ -143,6 +256,7 @@ export class Panel {
       details.append(list);
       this.root.append(details);
     }
+    this.root.append(this.scanSection('Lieux scannés en 3D', this.scans.all));
   }
 
   private renderCountry(index: number): void {
@@ -156,6 +270,7 @@ export class Panel {
 
     this.root.append(
       this.breadcrumb(-1),
+      this.tag('CIBLE : PAYS'),
       el('h2', '', `${flagEmoji(p.a2)} ${p.name}`),
       facts([
         ['Continent', p.continent],
@@ -165,8 +280,35 @@ export class Panel {
       ]),
     );
 
+    const groups = [...world.groupsByCountry[index]].sort((a, b) =>
+      collator.compare(world.groups[a].name, world.groups[b].name),
+    );
+    if (groups.length > 0) {
+      const details = el('details');
+      details.append(el('summary', '', `Régions (${formatNumber(groups.length)})`));
+      const list = el('ul', 'list');
+      for (const g of groups) {
+        const li = el('li');
+        li.append(
+          linkButton(world.groups[g].name, () => this.select({ kind: 'group', index: g })),
+          el('span', 'muted', formatNumber(world.groups[g].regions.length)),
+        );
+        list.append(li);
+      }
+      details.append(list);
+      this.root.append(details);
+    }
+    const subdivisions = groups.length > 0 ? 'Départements et subdivisions' : 'Régions';
+    this.root.append(
+      this.regionList(subdivisions, regions),
+      this.cityList('Villes', world.citiesByCountry[index]),
+    );
+  }
+
+  private regionList(title: string, regions: number[]): HTMLDetailsElement {
+    const { world } = this;
     const details = el('details');
-    details.append(el('summary', '', `Régions (${formatNumber(regions.length)})`));
+    details.append(el('summary', '', `${title} (${formatNumber(regions.length)})`));
     const list = el('ul', 'list');
     for (const r of regions) {
       const li = el('li');
@@ -179,7 +321,29 @@ export class Panel {
       list.append(li);
     }
     details.append(list);
-    this.root.append(details, this.cityList('Villes', world.citiesByCountry[index]));
+    return details;
+  }
+
+  private renderGroup(index: number): void {
+    const { world } = this;
+    const group = world.groups[index];
+    const collator = new Intl.Collator('fr');
+    const regions = [...group.regions].sort((a, b) =>
+      collator.compare(world.regions[a].properties.name, world.regions[b].properties.name),
+    );
+    const list = this.regionList('Départements et subdivisions', regions);
+    list.open = true;
+    this.root.append(
+      this.breadcrumb(group.country),
+      this.tag('CIBLE : RÉGION'),
+      el('h2', '', group.name),
+      facts([
+        ['Pays', world.countries[group.country].properties.name],
+        ['Subdivisions', formatNumber(regions.length)],
+      ]),
+      list,
+      this.cityList('Villes', world.citiesOfGroup(index)),
+    );
   }
 
   private renderRegion(index: number): void {
@@ -187,12 +351,14 @@ export class Panel {
     const p = world.regions[index].properties;
     const country = world.countryOfRegion(index);
     this.root.append(
-      this.breadcrumb(country),
+      this.breadcrumb(country, -1, world.groupOfRegion[index]),
+      this.tag(`CIBLE : ${regionTypeLabel(p.type).toUpperCase()}`),
       el('h2', '', p.name),
       facts([
-        ['Type', p.type || 'Région'],
+        ['Type', regionTypeLabel(p.type)],
         ['Pays', country >= 0 ? world.countries[country].properties.name : '—'],
       ]),
+      this.groundActions(p.lat, p.lng, 9, false),
       this.cityList('Villes', world.citiesByRegion[index]),
     );
   }
@@ -205,13 +371,9 @@ export class Panel {
     const lat = c.lat[index];
     const lng = c.lng[index];
 
-    const map = el('a', '', 'Voir sur OpenStreetMap');
-    map.href = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=11/${lat}/${lng}`;
-    map.target = '_blank';
-    map.rel = 'noopener';
-
     this.root.append(
       this.breadcrumb(country, region),
+      this.tag(world.capitals.has(index) ? 'CIBLE : CAPITALE' : 'CIBLE : VILLE'),
       el('h2', '', c.name[index]),
       facts([
         ['Statut', world.capitals.has(index) ? '★ Capitale' : 'Ville'],
@@ -219,8 +381,32 @@ export class Panel {
         ['Région', region >= 0 ? world.regions[region].properties.name : '—'],
         ['Population', `${formatNumber(c.pop[index])} hab.`],
         ['Coordonnées', formatCoords(lat, lng)],
-        ['Carte', map],
+        ['Liens', this.externalLinks(lat, lng)],
       ]),
+      this.groundActions(lat, lng, 14.5, true),
+      this.scanSection('Lieux scannés à proximité', scansNear(this.scans.all, lat, lng, 40), {
+        lat,
+        lng,
+      }),
+    );
+  }
+
+  private renderPlace(place: Extract<Selection, { kind: 'place' }>): void {
+    this.root.append(
+      this.breadcrumb(-1),
+      this.tag('CIBLE : LIEU'),
+      el('h2', '', place.name),
+      el('p', 'muted', place.detail),
+      facts([
+        ['Coordonnées', formatCoords(place.lat, place.lng)],
+        ['Liens', this.externalLinks(place.lat, place.lng)],
+      ]),
+      this.groundActions(place.lat, place.lng, 16.5, true),
+      this.scanSection(
+        'Lieux scannés à proximité',
+        scansNear(this.scans.all, place.lat, place.lng, 40),
+        { lat: place.lat, lng: place.lng },
+      ),
     );
   }
 }

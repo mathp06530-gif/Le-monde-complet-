@@ -122,6 +122,8 @@ const regions = {
           nameEn: p.name_en || p.name,
           a3: p.adm0_a3,
           type: p.type_en || '',
+          // Niveau administratif supérieur quand il existe (ex. région d'un département).
+          group: p.region || '',
           gn: p.gn_a1_code || '',
           lat: round(p.latitude, 3),
           lng: round(p.longitude, 3),
@@ -182,19 +184,29 @@ function findRegion(lng, lat, gnCode) {
   return gnToRegion.get(gnCode) ?? -1;
 }
 
+// Territoires que GeoNames code à part mais que Natural Earth rattache à un État.
+const A2_ALIASES = {
+  GP: 'FR',
+  MQ: 'FR',
+  GF: 'FR',
+  RE: 'FR',
+  YT: 'FR',
+  BQ: 'NL',
+  CX: 'AU',
+  CC: 'AU',
+  TK: 'NZ',
+  SJ: 'NO',
+};
+
 const sorted = [...cities].sort((a, b) => b.population - a.population);
 const out = { name: [], lat: [], lng: [], pop: [], country: [], region: [], capital: [] };
-let orphanCountry = 0;
-let orphanRegion = 0;
 sorted.forEach((c, i) => {
   const [lng, lat] = c.loc.coordinates;
   const region = findRegion(lng, lat, `${c.country}.${c.adminCode}`);
-  let country = a2ToCountry.get(c.country) ?? -1;
+  let country = a2ToCountry.get(c.country) ?? a2ToCountry.get(A2_ALIASES[c.country]) ?? -1;
   if (country < 0 && region >= 0) {
     country = a3ToCountry.get(regionFeatures[region].properties.a3) ?? -1;
   }
-  if (country < 0) orphanCountry++;
-  if (region < 0) orphanRegion++;
   out.name.push(c.name);
   out.lat.push(round(lat, 4));
   out.lng.push(round(lng, 4));
@@ -203,6 +215,48 @@ sorted.forEach((c, i) => {
   out.region.push(region);
   if (c.featureCode === 'PPLC') out.capital.push(i);
 });
+
+// Villes côtières ou insulaires tombées hors des polygones simplifiés : on
+// reprend la région de la ville rattachée la plus proche (même pays, < 80 km).
+const cityGrid = new Map();
+const cellOf = (lng, lat) => `${Math.floor(lng)},${Math.floor(lat)}`;
+out.region.forEach((r, i) => {
+  if (r < 0) return;
+  const k = cellOf(out.lng[i], out.lat[i]);
+  if (!cityGrid.has(k)) cityGrid.set(k, []);
+  cityGrid.get(k).push(i);
+});
+const MAX_KM = 80;
+let adopted = 0;
+out.region.forEach((r, i) => {
+  if (r >= 0) return;
+  const lat = out.lat[i];
+  const lng = out.lng[i];
+  let best = -1;
+  let bestKm = MAX_KM;
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dy = -1; dy <= 1; dy++) {
+      for (const j of cityGrid.get(cellOf(lng + dx, lat + dy)) ?? []) {
+        if (out.country[j] !== out.country[i]) continue;
+        const km = Math.hypot(
+          (out.lat[j] - lat) * 111,
+          (out.lng[j] - lng) * 111 * Math.cos((lat * Math.PI) / 180),
+        );
+        if (km < bestKm) {
+          bestKm = km;
+          best = j;
+        }
+      }
+    }
+  }
+  if (best >= 0) {
+    out.region[i] = out.region[best];
+    adopted++;
+  }
+});
+const orphanCountry = out.country.filter((c) => c < 0).length;
+const orphanRegion = out.region.filter((r) => r < 0).length;
+console.log(`Villes rattachées par proximité : ${adopted}`);
 await writeFile(path.join(outDir, 'cities.json'), JSON.stringify(out));
 console.log(
   `Villes : ${sorted.length} (sans pays : ${orphanCountry}, sans région : ${orphanRegion})`,
