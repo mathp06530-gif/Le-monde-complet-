@@ -22,7 +22,12 @@ Globe terrestre 3D interactif, dans le navigateur : **242 pays et territoires**,
   et de lieux
 - Mode « Marcher » : déplacement libre à hauteur de rue, au clavier (ZQSD ou
   flèches) ou avec les flèches tactiles
-- Liens directs vers les photos de rue (Google Street View, Mapillary)
+- **Photos de rue réelles** intégrées : photos libres Panoramax (souvent à
+  360°), dans lesquelles on regarde autour de soi et on avance le long de la rue
+- **Ville 3D photo-réaliste** : bâtiments, monuments et végétation texturés
+  (données Google diffusées par Cesium ion), avec un jeton gratuit à coller
+  une fois dans l'application
+- Liens directs vers Google Street View, Mapillary et Streets GL
 - Lieux scannés en 3D (Gaussian splats, par exemple publiés sur SuperSplat /
   PlayCanvas) : on colle le lien d'un scan sur la fiche d'une ville et il
   s'ouvre dans la visionneuse intégrée
@@ -61,6 +66,11 @@ npm run preview    # prévisualiser le build
 | `scripts/build-data.mjs` | Télécharge, simplifie et compacte les données sources       |
 | `src/data.ts`            | Chargement, index et requêtes spatiales (pays/région/ville) |
 | `src/globe.ts`           | Globe 3D et couches (frontières, villes, surbrillance)      |
+| `src/earth-material.ts`  | Shader de la Terre (jour/nuit, nuages, relief, reflets)     |
+| `src/ground.ts`          | Vue au sol MapLibre (satellite, relief, bâtiments, marche)  |
+| `src/street.ts`          | Photos de rue Panoramax et leur visionneuse                 |
+| `src/city3d.ts`          | Ville 3D photo-réaliste (3D Tiles via Cesium ion)           |
+| `src/scans.ts`           | Catalogue des lieux scannés en 3D                           |
 | `src/labels.ts`          | Noms affichés sur le globe, sans chevauchement              |
 | `src/search.ts`          | Recherche                                                   |
 | `src/panel.ts`           | Panneau latéral (accueil et fiches)                         |
@@ -72,6 +82,18 @@ Pile technique : Vite, TypeScript, [globe.gl](https://globe.gl) / Three.js,
 Pour livrer des scans 3D avec l'application, ajoutez-les à
 `public/data/scans.json` sous la forme
 `[{ "name": "…", "url": "https://…", "lat": 48.8, "lng": 2.1 }]`.
+
+## Ville 3D : jeton Cesium ion
+
+La vue « Ville 3D » demande un jeton d'accès Cesium ion. Le compte gratuit
+(usage personnel) donne droit à un quota mensuel d'ouvertures de la vue.
+
+1. Créer un compte sur <https://ion.cesium.com>.
+2. Copier le jeton par défaut depuis la page « Access Tokens ».
+3. Le coller dans l'application à la première ouverture de « Ville 3D ».
+
+Le jeton n'est jamais écrit dans le dépôt : il est conservé dans le navigateur
+de chaque utilisateur.
 
 ## Déploiement
 
@@ -92,6 +114,9 @@ dépôt : _Settings › Pages › Source : GitHub Actions_.
   [OpenFreeMap](https://openfreemap.org)
 - Relief : Mapzen / AWS Terrain Tiles
 - Recherche mondiale : Nominatim (OpenStreetMap)
+- Photos de rue : [Panoramax](https://panoramax.fr), sous la licence indiquée
+  sur chaque photo
+- Ville 3D : Google Photorealistic 3D Tiles via [Cesium ion](https://cesium.com/ion)
 
 La vue au sol et la recherche mondiale nécessitent une connexion Internet : ces
 données sont chargées à la demande depuis les services ci-dessus.
