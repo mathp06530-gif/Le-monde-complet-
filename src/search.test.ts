@@ -8,6 +8,16 @@ describe('matchKeys', () => {
     expect(matchKeys(keys, 'par', 10)).toEqual([0, 2, 4, 1]);
   });
 
+  it('place les correspondances exactes en tête', () => {
+    expect(matchKeys(['monsey', 'mons', 'monster', 'mons | bergen'], 'mons', 10)).toEqual([
+      1, 3, 0, 2,
+    ]);
+  });
+
+  it('écarte les entrées refusées par le filtre', () => {
+    expect(matchKeys(keys, 'par', 10, (i) => i !== 0)).toEqual([2, 4, 1]);
+  });
+
   it('respecte la limite', () => {
     expect(matchKeys(keys, 'par', 2)).toEqual([0, 2]);
   });

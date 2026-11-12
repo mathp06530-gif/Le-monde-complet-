@@ -1,7 +1,7 @@
 # 🌍 Le Monde Complet
 
 Globe terrestre 3D interactif, dans le navigateur : **242 pays et territoires**,
-**4 589 régions** (états, provinces, départements…) et **135 233 villes**.
+**4 589 régions** (états, provinces, départements…) et **199 568 villes et villages**.
 
 ## Fonctionnalités
 
@@ -10,8 +10,8 @@ Globe terrestre 3D interactif, dans le navigateur : **242 pays et territoires**,
 - Terre photo-réaliste : alternance jour/nuit calculée d'après la position
   réelle du Soleil, lumières des villes côté nuit, nuages, relief, reflets sur
   les océans, atmosphère
-- Frontières des pays et des régions ; toutes les villes de plus de
-  1 000 habitants, qui apparaissent au fur et à mesure du zoom
+- Frontières des pays et des régions ; toutes les villes et tous les villages de plus
+  de 500 habitants, qui apparaissent au fur et à mesure du zoom
 - Trois niveaux administratifs quand ils existent : pays › région › département
   (France, Italie, Espagne, Royaume-Uni…)
 
@@ -30,7 +30,7 @@ Globe terrestre 3D interactif, dans le navigateur : **242 pays et territoires**,
 **Recherche et navigation**
 
 - Recherche instantanée des pays, régions et villes (sans tenir compte des
-  accents), plus une recherche mondiale en ligne pour les adresses, villages et
+  accents ; on peut préciser le lieu, par exemple « mons var »), plus une recherche mondiale en ligne pour les adresses, villages et
   monuments
 - Fiches d'information (capitale, population, coordonnées)
 - Interface de style terminal, utilisable sur mobile
@@ -82,7 +82,8 @@ dépôt : _Settings › Pages › Source : GitHub Actions_.
 ## Données et crédits
 
 - Pays et régions : [Natural Earth](https://www.naturalearthdata.com/) (domaine public)
-- Villes : [GeoNames](https://www.geonames.org/) (CC BY 4.0), via le paquet `all-the-cities`
+- Villes et villages : [GeoNames](https://www.geonames.org/) « cities500 » (CC BY 4.0), via le
+  paquet `cities-500-structured`
 - Textures du globe : NASA Blue Marble / Black Marble, via `three-globe`
 - Imagerie satellite de la vue au sol : Esri World Imagery (Esri, Maxar,
   Earthstar Geographics) — soumise aux conditions d'utilisation d'Esri

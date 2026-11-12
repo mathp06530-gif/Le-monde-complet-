@@ -1,6 +1,6 @@
 {
   "name": "le-monde-complet",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "description": "Globe terrestre 3D interactif : tous les pays, régions et villes du monde",
@@ -29,8 +29,7 @@
     "@types/three": "^0.187.0",
     "@types/topojson-client": "^3.1.5",
     "@types/topojson-specification": "^1.0.5",
-    "all-the-cities": "^3.1.0",
-    "cities.json": "^1.1.66",
+    "cities-500-structured": "^1.0.1",
     "eslint": "^10.14.0",
     "globals": "^17.14.0",
     "mapshaper": "^0.7.101",

@@ -8,20 +8,33 @@ export interface SearchResult {
 }
 
 /**
- * Renvoie les index des entrées correspondant à la requête : d'abord celles
- * qui commencent par la requête, puis celles qui la contiennent. L'ordre
- * d'origine (par importance) est conservé dans chaque groupe.
+ * Renvoie les index des entrées correspondant à la requête : d'abord les
+ * correspondances exactes, puis celles qui commencent par la requête, puis
+ * celles qui la contiennent. L'ordre d'origine (par importance) est conservé
+ * dans chaque groupe. `accept` permet d'écarter des entrées.
  */
-export function matchKeys(keys: readonly string[], query: string, limit: number): number[] {
+export function matchKeys(
+  keys: readonly string[],
+  query: string,
+  limit: number,
+  accept?: (index: number) => boolean,
+): number[] {
   if (!query || limit <= 0) return [];
+  const exact: number[] = [];
   const prefix: number[] = [];
   const inner: number[] = [];
-  for (let i = 0; i < keys.length && prefix.length < limit; i++) {
+  for (let i = 0; i < keys.length && exact.length < limit; i++) {
     const at = keys[i].indexOf(query);
-    if (at === 0) prefix.push(i);
-    else if (at > 0 && inner.length < limit) inner.push(i);
+    if (at < 0 || (accept && !accept(i))) continue;
+    if (at > 0) {
+      if (inner.length < limit) inner.push(i);
+    } else if (keys[i].length === query.length || keys[i].startsWith(`${query} |`)) {
+      exact.push(i);
+    } else if (prefix.length < limit) {
+      prefix.push(i);
+    }
   }
-  return prefix.concat(inner).slice(0, limit);
+  return exact.concat(prefix, inner).slice(0, limit);
 }
 
 export class SearchIndex {
@@ -72,7 +85,7 @@ export class SearchIndex {
         subtitle: `${regionTypeLabel(p.type)} · ${country >= 0 ? world.countries[country].properties.name : p.a3}`,
       });
     }
-    for (const i of matchKeys(this.cityKeys, query, 14)) {
+    for (const i of this.matchCities(query, 14)) {
       const c = world.cities;
       const parts = ['Ville'];
       if (c.region[i] >= 0) parts.push(world.regions[c.region[i]].properties.name);
@@ -84,6 +97,37 @@ export class SearchIndex {
       });
     }
     return results;
+  }
+
+  /**
+   * Villes correspondant à la requête. Les derniers mots peuvent préciser le
+   * lieu : « mons var » ou « paris texas » filtrent sur la région, le groupe
+   * de régions ou le pays.
+   */
+  private matchCities(query: string, limit: number): number[] {
+    const { world } = this;
+    const found = new Set<number>();
+    const words = query.split(' ');
+    for (let split = words.length - 1; split >= 1 && found.size < limit; split--) {
+      const name = words.slice(0, split).join(' ');
+      const qualifier = words.slice(split).join(' ');
+      const inPlace = (i: number) => {
+        const region = world.cities.region[i];
+        const country = world.cities.country[i];
+        const group = region >= 0 ? world.groupOfRegion[region] : -1;
+        return (
+          (region >= 0 && this.regionKeys[region].includes(qualifier)) ||
+          (group >= 0 && this.groupKeys[group].includes(qualifier)) ||
+          (country >= 0 && this.countryKeys[country].includes(qualifier))
+        );
+      };
+      for (const i of matchKeys(this.cityKeys, name, limit - found.size, inPlace)) found.add(i);
+    }
+    for (const i of matchKeys(this.cityKeys, query, limit)) {
+      if (found.size >= limit) break;
+      found.add(i);
+    }
+    return [...found];
   }
 }
 

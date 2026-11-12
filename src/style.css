@@ -1,6 +1,6 @@
 :root {
   --bg: #020604;
-  --surface: rgba(2, 12, 9, 0.84);
+  --surface: rgba(2, 12, 9, 0.9);
   --border: rgba(0, 255, 156, 0.32);
   --text: #c9ffe9;
   --muted: #5fae92;
@@ -163,7 +163,6 @@ body[data-mode='ground'] #options {
 .btn {
   border: 1px solid var(--border);
   background: var(--surface);
-  backdrop-filter: blur(8px);
 }
 
 #topbar {
@@ -513,6 +512,17 @@ body[data-mode='ground'] #ground-controls {
 
 body.walking #walk-help {
   display: block;
+}
+
+body.walking #btn-relief {
+  display: none;
+}
+
+/* Sur tablette et téléphone, pas d'effet plein écran par-dessus la vue au sol. */
+@media (pointer: coarse) {
+  body[data-mode='ground'] #fx {
+    background: none;
+  }
 }
 
 body.walking #panel,

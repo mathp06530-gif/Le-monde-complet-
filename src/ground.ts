@@ -12,7 +12,14 @@ const WALK_SPEED = 14;
 const RUN_FACTOR = 5;
 const TURN_SPEED = 70;
 const WALK_ZOOM = 20.5;
-const WALK_PITCH = 80;
+
+/**
+ * Appareil tactile ou peu puissant : on y privilégie la fluidité (résolution
+ * réduite, pas de relief par défaut, moins de tuiles vers l'horizon).
+ */
+const LOW_POWER =
+  window.matchMedia('(pointer: coarse)').matches || (navigator.hardwareConcurrency ?? 8) <= 4;
+const WALK_PITCH = LOW_POWER ? 74 : 78;
 
 const style: StyleSpecification = {
   version: 8,
@@ -43,7 +50,6 @@ const style: StyleSpecification = {
     },
     highlight: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
   },
-  terrain: { source: 'relief', exaggeration: 1 },
   sky: {
     'sky-color': '#5b9bd5',
     'horizon-color': '#cfe3f2',
@@ -162,6 +168,8 @@ export const LEAVE_ZOOM = 4.6;
 export class GroundView {
   readonly map: maplibregl.Map;
   walking = false;
+  /** Relief 3D souhaité par l'utilisateur (coupé d'office pendant la marche). */
+  reliefEnabled = !LOW_POWER;
 
   private readonly keys = new Set<string>();
   private lastFrame = 0;
@@ -179,6 +187,14 @@ export class GroundView {
       maxZoom: 22,
       maxPitch: 85,
       attributionControl: false,
+      // Les écrans très denses multiplient le nombre de pixels à calculer.
+      pixelRatio: Math.min(window.devicePixelRatio, LOW_POWER ? 1 : 1.5),
+      fadeDuration: 0,
+    });
+    this.map.once('load', () => {
+      // Moins de tuiles chargées vers l'horizon quand la vue est inclinée.
+      this.map.setSourceTileLodParams(LOW_POWER ? 3 : 4, LOW_POWER ? 1.5 : 2.5);
+      this.applyRelief();
     });
     this.map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-left');
     this.map.on('click', (e) => {
@@ -266,9 +282,23 @@ export class GroundView {
       center: [lng, lat],
       zoom: WALK_ZOOM,
       pitch: WALK_PITCH,
-      speed: 1.1,
+      speed: 1.4,
+      maxDuration: 5000,
       essential: true,
     });
+  }
+
+  /** Active ou coupe le relief 3D (plus beau, mais nettement plus lourd). */
+  setRelief(on: boolean): void {
+    this.reliefEnabled = on;
+    this.applyRelief();
+  }
+
+  private applyRelief(): void {
+    if (!this.map.isStyleLoaded()) return;
+    const on = this.reliefEnabled && !this.walking;
+    if (on === Boolean(this.map.getTerrain())) return;
+    this.map.setTerrain(on ? { source: 'relief', exaggeration: 1 } : null);
   }
 
   private applyWalking(on: boolean): void {
@@ -276,16 +306,21 @@ export class GroundView {
     this.keys.clear();
     // Le clavier doit piloter la marche, pas le champ de recherche resté actif.
     if (on && document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    // En marche, seuls nos propres contrôles déplacent la caméra.
     const handlers = [
       this.map.dragPan,
       this.map.dragRotate,
       this.map.keyboard,
       this.map.doubleClickZoom,
+      this.map.scrollZoom,
+      this.map.touchZoomRotate,
+      this.map.touchPitch,
     ];
     for (const handler of handlers) {
       if (on) handler.disable();
       else handler.enable();
     }
+    this.applyRelief();
   }
 
   /** Maintient (ou relâche) une commande de déplacement, pour les boutons tactiles. */

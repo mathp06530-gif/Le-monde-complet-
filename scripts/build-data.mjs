@@ -2,10 +2,10 @@
 //
 // Sources :
 //  - Natural Earth (domaine public) : pays (1:50m) et régions/états (1:10m)
-//  - GeoNames (CC BY 4.0) via les paquets npm `all-the-cities` et `cities.json`
+//  - GeoNames « cities500 » (CC BY 4.0) : lieux habités de plus de 500 habitants,
+//    via le paquet npm `cities-500-structured`
 //
 // Usage : npm run data
-import { createRequire } from 'node:module';
 import { mkdir, readFile, writeFile, access } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -13,7 +13,6 @@ import mapshaper from 'mapshaper';
 import { geoBounds, geoContains } from 'd3-geo';
 import { feature } from 'topojson-client';
 
-const require = createRequire(import.meta.url);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const cacheDir = path.join(root, '.cache', 'natural-earth');
 const outDir = path.join(root, 'public', 'data');
@@ -74,7 +73,27 @@ await mkdir(outDir, { recursive: true });
 
 // ---------------------------------------------------------------- Pays
 const neCountries = await fetchCached(NE_COUNTRIES);
-const cities = require('all-the-cities');
+// Fichier tabulé GeoNames : nom (1), lat (4), lng (5), code de type (7),
+// pays (8), code admin1 (10), population (14).
+const cities = (
+  await readFile(
+    path.join(root, 'node_modules', 'cities-500-structured', 'dist', 'cities500.txt'),
+    'utf8',
+  )
+)
+  .split('\n')
+  .filter(Boolean)
+  .map((line) => {
+    const f = line.split('\t');
+    return {
+      name: f[1],
+      country: f[8],
+      featureCode: f[7],
+      adminCode: f[10],
+      population: Number(f[14]) || 0,
+      loc: { coordinates: [Number(f[5]), Number(f[4])] },
+    };
+  });
 const capitals = new Map(
   cities.filter((c) => c.featureCode === 'PPLC').map((c) => [c.country, c.name]),
 );

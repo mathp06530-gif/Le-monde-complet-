@@ -201,11 +201,17 @@ function start(world: World, scans: ScanLibrary): void {
   function updateWalkUi(): void {
     const walking = ground?.walking ?? false;
     $('btn-walk').textContent = walking ? '✕ Quitter la marche' : '⛶ Marcher';
+    $('btn-relief').textContent = `Relief : ${ground?.reliefEnabled ? 'oui' : 'non'}`;
     document.body.classList.toggle('walking', walking);
     updateHud();
   }
 
   $('btn-orbit').addEventListener('click', leaveGround);
+  $('btn-relief').addEventListener('click', () => {
+    if (!ground) return;
+    ground.setRelief(!ground.reliefEnabled);
+    updateWalkUi();
+  });
   $('btn-walk').addEventListener('click', () => {
     ground?.setWalking(!ground.walking);
     updateWalkUi();
@@ -217,6 +223,8 @@ function start(world: World, scans: ScanLibrary): void {
       ground?.hold(code, pressed);
     };
     pad.addEventListener('pointerdown', set(true));
+    // Un appui long ne doit pas ouvrir le menu contextuel du navigateur.
+    pad.addEventListener('contextmenu', (e) => e.preventDefault());
     for (const type of ['pointerup', 'pointerleave', 'pointercancel']) {
       pad.addEventListener(type, set(false));
     }
