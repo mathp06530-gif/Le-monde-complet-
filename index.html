@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Globe terrestre 3D interactif : tous les pays, régions et villes du monde."
+    />
+    <meta name="theme-color" content="#05070d" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌍</text></svg>"
+    />
+    <title>Le Monde Complet</title>
+  </head>
+  <body>
+    <div id="globe"></div>
+    <div id="labels" aria-hidden="true"></div>
+
+    <header id="topbar">
+      <h1>🌍 Le Monde Complet</h1>
+      <div id="searchbox">
+        <input
+          id="search"
+          type="search"
+          placeholder="Rechercher un pays, une région, une ville…"
+          autocomplete="off"
+          aria-label="Rechercher un lieu"
+        />
+        <ul id="results"></ul>
+      </div>
+    </header>
+
+    <button id="panel-toggle" type="button" aria-label="Afficher ou masquer le panneau">☰</button>
+    <aside id="panel">
+      <button id="panel-close" type="button" aria-label="Revenir à l'accueil">✕</button>
+      <div id="panel-content"></div>
+    </aside>
+
+    <form id="options" aria-label="Options d'affichage">
+      <label><input id="opt-regions" type="checkbox" checked /> Régions</label>
+      <label><input id="opt-cities" type="checkbox" checked /> Villes</label>
+      <label><input id="opt-labels" type="checkbox" checked /> Noms</label>
+      <label><input id="opt-night" type="checkbox" /> Nuit</label>
+      <label><input id="opt-rotate" type="checkbox" /> Rotation</label>
+    </form>
+
+    <footer id="credits">Données : Natural Earth · GeoNames · NASA Blue Marble</footer>
+
+    <div id="loading">Chargement du monde…</div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

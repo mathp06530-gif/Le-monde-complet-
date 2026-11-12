@@ -1,0 +1,43 @@
+{
+  "name": "le-monde-complet",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Globe terrestre 3D interactif : tous les pays, régions et villes du monde",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "data": "node scripts/build-data.mjs"
+  },
+  "dependencies": {
+    "d3-geo": "^3.1.2",
+    "globe.gl": "^2.46.2",
+    "three": "^0.187.0",
+    "topojson-client": "^3.1.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/d3-geo": "^3.1.1",
+    "@types/geojson": "^7946.0.16",
+    "@types/three": "^0.187.0",
+    "@types/topojson-client": "^3.1.5",
+    "@types/topojson-specification": "^1.0.5",
+    "all-the-cities": "^3.1.0",
+    "cities.json": "^1.1.66",
+    "eslint": "^10.14.0",
+    "globals": "^17.14.0",
+    "mapshaper": "^0.7.101",
+    "prettier": "^3.10.1",
+    "topojson-server": "^3.0.1",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.72.2",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
+  }
+}
