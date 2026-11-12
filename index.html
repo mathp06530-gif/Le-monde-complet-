@@ -45,6 +45,8 @@
       <button id="btn-orbit" type="button" class="btn">▲ Orbite</button>
       <button id="btn-walk" type="button" class="btn">⛶ Marcher</button>
       <button id="btn-relief" type="button" class="btn">Relief : non</button>
+      <button id="btn-street" type="button" class="btn">◉ Photos de rue</button>
+      <button id="btn-city3d" type="button" class="btn">▣ Ville 3D</button>
       <a id="link-streetview" class="btn" target="_blank" rel="noopener">Street View ↗</a>
       <p id="walk-help">
         ZQSD ou flèches ↑ ↓ : se déplacer · ← → : tourner · glisser : regarder · Maj : courir ·
@@ -77,7 +79,7 @@
       <span id="credits">Natural Earth · GeoNames · NASA · Esri · OpenStreetMap</span>
     </footer>
 
-    <section id="scan-viewer" hidden>
+    <section id="scan-viewer" class="viewer" hidden>
       <header>
         <span class="tag">// SCAN 3D</span>
         <strong id="scan-title"></strong>
@@ -90,6 +92,48 @@
         allow="fullscreen; xr-spatial-tracking; gyroscope; accelerometer"
         referrerpolicy="no-referrer"
       ></iframe>
+    </section>
+
+    <section id="street-viewer" class="viewer" hidden>
+      <header>
+        <span class="tag">// PHOTO DE RUE</span>
+        <strong id="street-title"></strong>
+        <button id="street-prev" type="button" class="btn">◀ Reculer</button>
+        <button id="street-next" type="button" class="btn">Avancer ▶</button>
+        <button id="street-close" type="button" class="btn">✕ Fermer</button>
+      </header>
+      <div id="street-canvas" class="viewer-body"></div>
+      <p id="street-credit" class="viewer-credit"></p>
+    </section>
+
+    <section id="city3d-viewer" class="viewer" hidden>
+      <header>
+        <span class="tag">// VILLE 3D</span>
+        <strong id="city3d-title"></strong>
+        <button id="city3d-token" type="button" class="btn">Jeton</button>
+        <button id="city3d-close" type="button" class="btn">✕ Fermer</button>
+      </header>
+      <div id="city3d-canvas" class="viewer-body"></div>
+      <form id="city3d-setup" class="viewer-setup" hidden>
+        <p class="tag">// ACCÈS REQUIS</p>
+        <p>
+          La 3D photo-réaliste est fournie par Cesium ion. Créez un compte gratuit sur
+          <a href="https://ion.cesium.com/tokens" target="_blank" rel="noopener">ion.cesium.com</a>,
+          copiez votre jeton d'accès et collez-le ici. Il reste enregistré dans ce navigateur
+          uniquement.
+        </p>
+        <input
+          id="city3d-input"
+          type="password"
+          placeholder="jeton d'accès Cesium ion"
+          autocomplete="off"
+          spellcheck="false"
+          aria-label="Jeton d'accès Cesium ion"
+        />
+        <p id="city3d-error" class="viewer-error"></p>
+        <button type="submit" class="btn">Valider</button>
+      </form>
+      <p id="city3d-credit" class="viewer-credit"></p>
     </section>
 
     <div id="loading">

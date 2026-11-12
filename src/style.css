@@ -639,7 +639,7 @@ body.walking #dpad {
 
 /* ------------------------------------------------ Visionneuse de scans */
 
-#scan-viewer {
+.viewer {
   position: fixed;
   inset: 0;
   z-index: 9;
@@ -648,28 +648,106 @@ body.walking #dpad {
   background: var(--bg);
 }
 
-#scan-viewer[hidden] {
+.viewer[hidden] {
   display: none;
 }
 
-#scan-viewer header {
+.viewer header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 8px 12px;
   padding: 8px 12px;
   border-bottom: 1px solid var(--border);
 }
 
-#scan-viewer .tag {
+.viewer .tag {
   margin: 0;
 }
 
-#scan-title {
+.viewer header strong {
   flex: 1;
+  min-width: 120px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: #fff;
+}
+
+.viewer .btn:disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.viewer-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background: #000;
+}
+
+.viewer-body canvas {
+  display: block;
+  cursor: grab;
+}
+
+.viewer-credit {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  max-width: calc(100% - 16px);
+  margin: 0;
+  padding: 3px 8px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font-size: 11px;
+  pointer-events: none;
+}
+
+.viewer-credit:empty {
+  display: none;
+}
+
+.viewer-setup {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(460px, calc(100% - 32px));
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.viewer-setup[hidden] {
+  display: none;
+}
+
+.viewer-setup p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.viewer-setup input {
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  background: #000;
+  outline: none;
+}
+
+.viewer-setup input:focus {
+  border-color: var(--accent);
+}
+
+.viewer-error {
+  color: #ff6b6b;
+}
+
+.viewer-error:empty {
+  display: none;
 }
 
 #scan-frame {

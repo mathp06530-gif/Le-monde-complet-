@@ -14,6 +14,10 @@ import { Labels } from './labels';
 import { Panel } from './panel';
 import { ScanLibrary, type Scan } from './scans';
 import { SearchIndex, searchOnline } from './search';
+import type { City3dViewer } from './city3d';
+import { fetchPhoto, findPhotoNear, StreetViewer, type StreetPhoto } from './street';
+
+const TOKEN_KEY = 'le-monde-complet:cesium-token';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const EARTH_RADIUS_M = 6_371_000;
@@ -49,6 +53,8 @@ function start(world: World, scans: ScanLibrary): void {
     world,
     {
       openScan,
+      openStreet: (lat, lng, name) => void openStreet(lat, lng, name),
+      openCity3d: (lat, lng, name) => void openCity3d(lat, lng, name),
       select,
       descend: (lat, lng, zoom) => void enterGround(lat, lng, zoom, true),
       walk: (lat, lng) => void enterGround(lat, lng, 17, true, true),
@@ -231,6 +237,8 @@ function start(world: World, scans: ScanLibrary): void {
   }
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && !$('scan-viewer').hidden) return closeScan();
+    if (e.key === 'Escape' && !$('street-viewer').hidden) return closeStreet();
+    if (e.key === 'Escape' && !$('city3d-viewer').hidden) return closeCity3d();
     if (e.key === 'Escape' && ground?.walking) {
       ground.setWalking(false);
       updateWalkUi();
@@ -249,6 +257,131 @@ function start(world: World, scans: ScanLibrary): void {
     $<HTMLIFrameElement>('scan-frame').src = 'about:blank';
   }
   $('scan-close').addEventListener('click', closeScan);
+
+  // ------------------------------------------------- Photos de rue réelles
+  let streetViewer: StreetViewer | null = null;
+  let streetPhoto: StreetPhoto | null = null;
+  let streetRequest: AbortController | null = null;
+
+  async function showStreetPhoto(load: (signal: AbortSignal) => Promise<StreetPhoto | null>) {
+    streetRequest?.abort();
+    const request = (streetRequest = new AbortController());
+    const credit = $('street-credit');
+    credit.textContent = 'Recherche de photos…';
+    try {
+      const photo = await load(request.signal);
+      if (request.signal.aborted) return;
+      if (!photo) {
+        credit.textContent =
+          'Aucune photo de rue libre à moins de 3 km. Essayez les liens Street View ou Mapillary.';
+        return;
+      }
+      streetViewer ??= new StreetViewer($('street-canvas'));
+      await streetViewer.show(photo);
+      if (request.signal.aborted) return;
+      streetPhoto = photo;
+      credit.textContent = [
+        photo.date,
+        photo.author && `© ${photo.author}`,
+        photo.license,
+        'via Panoramax',
+      ]
+        .filter(Boolean)
+        .join(' · ');
+    } catch (error) {
+      if ((error as Error).name === 'AbortError') return;
+      credit.textContent = 'Photos de rue indisponibles (vérifiez la connexion).';
+    }
+    $<HTMLButtonElement>('street-prev').disabled = !streetPhoto?.prev;
+    $<HTMLButtonElement>('street-next').disabled = !streetPhoto?.next;
+  }
+
+  async function openStreet(lat: number, lng: number, name: string): Promise<void> {
+    streetPhoto = null;
+    $('street-title').textContent = name || formatCoords(lat, lng);
+    $('street-viewer').hidden = false;
+    await showStreetPhoto((signal) => findPhotoNear(lat, lng, signal));
+  }
+  function closeStreet(): void {
+    streetRequest?.abort();
+    $('street-viewer').hidden = true;
+  }
+  const stepStreet = (direction: 'prev' | 'next') => {
+    const href = streetPhoto?.[direction];
+    if (href) void showStreetPhoto((signal) => fetchPhoto(href, signal));
+  };
+  $('street-prev').addEventListener('click', () => stepStreet('prev'));
+  $('street-next').addEventListener('click', () => stepStreet('next'));
+  $('street-close').addEventListener('click', closeStreet);
+
+  // ------------------------------------------------- Ville 3D photo-réaliste
+  let city3d: City3dViewer | null = null;
+  let city3dPlace = { lat: 0, lng: 0 };
+  const readToken = () => {
+    try {
+      return localStorage.getItem(TOKEN_KEY) ?? '';
+    } catch {
+      return '';
+    }
+  };
+
+  function askToken(error = ''): void {
+    city3d?.close();
+    $('city3d-error').textContent = error;
+    $('city3d-setup').hidden = false;
+    $<HTMLInputElement>('city3d-input').focus();
+  }
+
+  async function startCity3d(token: string): Promise<void> {
+    $('city3d-setup').hidden = true;
+    $('city3d-credit').textContent = 'Chargement de la ville…';
+    if (!city3d) {
+      const { City3dViewer } = await import('./city3d');
+      city3d = new City3dViewer($('city3d-canvas'), {
+        onError: (message) =>
+          askToken(`Chargement refusé (${message}). Vérifiez le jeton ou le quota mensuel.`),
+        onAttribution: (text) => {
+          const credit = text ? `Données 3D : Google · ${text}` : 'Données 3D : Google';
+          if ($('city3d-credit').textContent !== credit) $('city3d-credit').textContent = credit;
+        },
+      });
+    }
+    city3d.open(token, city3dPlace.lat, city3dPlace.lng);
+  }
+
+  async function openCity3d(lat: number, lng: number, name: string): Promise<void> {
+    city3dPlace = { lat, lng };
+    $('city3d-title').textContent = name || formatCoords(lat, lng);
+    $('city3d-viewer').hidden = false;
+    const token = readToken();
+    if (token) await startCity3d(token);
+    else askToken();
+  }
+  function closeCity3d(): void {
+    city3d?.close();
+    $('city3d-viewer').hidden = true;
+  }
+  $('city3d-setup').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const token = $<HTMLInputElement>('city3d-input').value.trim();
+    if (!token) return;
+    try {
+      localStorage.setItem(TOKEN_KEY, token);
+    } catch {
+      // Stockage indisponible : le jeton ne vaudra que pour cette visite.
+    }
+    void startCity3d(token);
+  });
+  $('city3d-token').addEventListener('click', () => askToken());
+  $('city3d-close').addEventListener('click', closeCity3d);
+
+  const hereName = () => (selection?.kind === 'city' ? world.cities.name[selection.index] : '');
+  $('btn-street').addEventListener('click', () => {
+    if (ground) void openStreet(ground.center.lat, ground.center.lng, hereName());
+  });
+  $('btn-city3d').addEventListener('click', () => {
+    if (ground) void openCity3d(ground.center.lat, ground.center.lng, hereName());
+  });
 
   // ------------------------------------------------------------ Recherche
   const input = $<HTMLInputElement>('search');

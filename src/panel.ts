@@ -11,6 +11,10 @@ export interface PanelActions {
   descend(lat: number, lng: number, zoom: number): void;
   /** Descend et passe directement en mode marche. */
   walk(lat: number, lng: number): void;
+  /** Ouvre les vraies photos de rue les plus proches. */
+  openStreet(lat: number, lng: number, name: string): void;
+  /** Ouvre la ville en 3D photo-réaliste. */
+  openCity3d(lat: number, lng: number, name: string): void;
   /** Ouvre un lieu scanné en 3D dans la visionneuse. */
   openScan(scan: Scan): void;
 }
@@ -114,11 +118,21 @@ export class Panel {
     return el('p', 'tag', `// ${text}`);
   }
 
-  private groundActions(lat: number, lng: number, zoom: number, street: boolean): HTMLElement {
+  private groundActions(
+    lat: number,
+    lng: number,
+    zoom: number,
+    street: boolean,
+    name = '',
+  ): HTMLElement {
     const box = el('div', 'actions');
     box.append(linkButton('▼ Descendre au sol', () => this.actions.descend(lat, lng, zoom), 'btn'));
     if (street) {
-      box.append(linkButton('⛶ Marcher dans les rues', () => this.actions.walk(lat, lng), 'btn'));
+      box.append(
+        linkButton('⛶ Marcher dans les rues', () => this.actions.walk(lat, lng), 'btn'),
+        linkButton('◉ Photos de rue réelles', () => this.actions.openStreet(lat, lng, name), 'btn'),
+        linkButton('▣ Ville 3D réaliste', () => this.actions.openCity3d(lat, lng, name), 'btn'),
+      );
     }
     return box;
   }
@@ -137,6 +151,7 @@ export class Panel {
       `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`,
     );
     add('Mapillary ↗', `https://www.mapillary.com/app/?lat=${lat}&lng=${lng}&z=17`);
+    add('Streets GL (3D) ↗', `https://streets.gl/#${lat},${lng},45.00,0.00,1200.00`);
     add(
       'OpenStreetMap ↗',
       `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=15/${lat}/${lng}`,
@@ -383,7 +398,7 @@ export class Panel {
         ['Coordonnées', formatCoords(lat, lng)],
         ['Liens', this.externalLinks(lat, lng)],
       ]),
-      this.groundActions(lat, lng, 14.5, true),
+      this.groundActions(lat, lng, 14.5, true, c.name[index]),
       this.scanSection('Lieux scannés à proximité', scansNear(this.scans.all, lat, lng, 40), {
         lat,
         lng,
@@ -401,7 +416,7 @@ export class Panel {
         ['Coordonnées', formatCoords(place.lat, place.lng)],
         ['Liens', this.externalLinks(place.lat, place.lng)],
       ]),
-      this.groundActions(place.lat, place.lng, 16.5, true),
+      this.groundActions(place.lat, place.lng, 16.5, true, place.name),
       this.scanSection(
         'Lieux scannés à proximité',
         scansNear(this.scans.all, place.lat, place.lng, 40),
